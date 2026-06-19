@@ -1,26 +1,43 @@
-services:
+version: '3.8'
 
+services:
   app:
     build: .
     container_name: gestion_tareas_app
     ports:
-      - "8081:80"
-    volumes:
-      - .:/var/www/html
+      - "8080:80"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_NAME=gestion_tareas_ci
+    networks:
+      - gestion_network
 
   db:
     image: mysql:8.0
     container_name: gestion_tareas_db
-    restart: always
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: gestion_tareas_ci
-    ports:
-      - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gestion_network
+
+networks:
+  gestion_network:
+    driver: bridge
 
 volumes:
-  mysql_data:
+  db_data:
