@@ -60,6 +60,22 @@ pipeline {
                     # -p fija el nombre de proyecto explícitamente, así Compose
                     # solo gestiona los contenedores de ESTE stack y nunca toca
                     # nada fuera de él (como el contenedor jenkins).
+                    #
+                    # IMPORTANTE: a propósito NO se usa "down -v" ni se borra
+                    # el volumen "db_data". Esto es intencional:
+                    #   - MySQL solo ejecuta init.sql la PRIMERA vez que el
+                    #     volumen de datos está vacío.
+                    #   - Si el volumen ya existe, MySQL lo conserva tal cual
+                    #     está (con las tareas ya guardadas) y NO vuelve a
+                    #     correr init.sql, incluso si el archivo cambia.
+                    #   - Esto es lo que queremos: cada despliegue reconstruye
+                    #     la app, pero la base de datos persiste entre
+                    #     despliegues. Si en algún momento se necesita forzar
+                    #     una reinicialización completa de la base de datos
+                    #     (por ejemplo, tras modificar el esquema en init.sql),
+                    #     hay que borrar el volumen manualmente:
+                    #       docker-compose -p gestion_tareas_app_stack -f docker-compose.yml down
+                    #       docker volume rm gestion_tareas_app_stack_db_data
                     docker-compose -p ${COMPOSE_PROJECT_NAME} -f docker-compose.yml down --remove-orphans || true
 
                     # Eliminación puntual por nombre, solo de los contenedores
@@ -93,6 +109,22 @@ pipeline {
                     docker-compose -p ${COMPOSE_PROJECT_NAME} -f docker-compose.yml ps
                     # Verificar que el contenedor de la app esté corriendo
                     docker ps | grep gestion_tareas_app || (echo "ERROR: El contenedor no está corriendo" && exit 1)
+
+                    # Verificar que la tabla "tareas" exista en la base de datos.
+                    # Si esto falla, normalmente significa que el volumen de
+                    # MySQL quedó inicializado vacío en algún momento anterior
+                    # (sin haber corrido init.sql). Solución: borrar el volumen
+                    # "gestion_tareas_app_stack_db_data" y volver a desplegar.
+                    TABLA_EXISTE=$(docker exec gestion_tareas_db mysql -uroot -proot -N -e "USE gestion_tareas_ci; SHOW TABLES LIKE \\"tareas\\";" 2>/dev/null)
+                    if [ -z "$TABLA_EXISTE" ]; then
+                        echo "ERROR: la tabla 'tareas' no existe en la base de datos."
+                        echo "Esto suele pasar cuando el volumen de MySQL ya existía vacío de una corrida anterior (init.sql solo corre una vez, en la primera inicialización del volumen)."
+                        echo "Solución: docker-compose -p ${COMPOSE_PROJECT_NAME} -f docker-compose.yml down"
+                        echo "          docker volume rm ${COMPOSE_PROJECT_NAME}_db_data"
+                        echo "          y volver a correr el pipeline."
+                        exit 1
+                    fi
+                    echo "OK: la tabla 'tareas' existe en la base de datos."
                 '''
             }
         }
