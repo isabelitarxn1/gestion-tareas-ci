@@ -24,16 +24,19 @@ services:
       MYSQL_DATABASE: gestion_tareas_ci
     volumes:
       - db_data:/var/lib/mysql
-      # IMPORTANTE: se monta el DIRECTORIO completo "db-init", no el archivo
-      # "init.sql" suelto. Montar un archivo individual con bind mount
-      # (./init.sql:/docker-entrypoint-initdb.d/init.sql) es propenso a
-      # fallar en Windows + Docker Desktop (WSL2): si hay timing entre el
-      # filesystem de Windows y el de la VM, Docker puede crear un
-      # directorio vacío en el destino en vez de montar el archivo, lo que
-      # produce el error "Can't initialize batch_readline - may be the
-      # input source is a directory". Montando la carpeta completa se evita
-      # ese problema.
-      - ./db-init:/docker-entrypoint-initdb.d
+      # IMPORTANTE: se usa una ruta ABSOLUTA de Windows, no relativa
+      # (./db-init). Esto es necesario porque Jenkins corre DENTRO de un
+      # contenedor Docker, y le habla al daemon de Docker del HOST a
+      # través del socket montado (/var/run/docker.sock). Cuando Jenkins
+      # ejecuta "docker-compose up", una ruta relativa como "./db-init" se
+      # resuelve respecto al directorio de trabajo del PROCESO
+      # docker-compose en el host, que no es necesariamente el mismo path
+      # que el workspace interno de Jenkins. Esto hacía que Docker montara
+      # una carpeta vacía en vez de la carpeta real del proyecto.
+      # Usando la ruta absoluta de Windows, Docker Desktop la resuelve
+      # siempre de forma correcta sin importar quién invoque el comando.
+      # Si tu proyecto vive en otra carpeta, ajustá esta ruta acorde.
+      - C:\xampp\htdocs\gestion-tareas-ci\db-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 10s
