@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build: .
@@ -26,7 +24,16 @@ services:
       MYSQL_DATABASE: gestion_tareas_ci
     volumes:
       - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      # IMPORTANTE: se monta el DIRECTORIO completo "db-init", no el archivo
+      # "init.sql" suelto. Montar un archivo individual con bind mount
+      # (./init.sql:/docker-entrypoint-initdb.d/init.sql) es propenso a
+      # fallar en Windows + Docker Desktop (WSL2): si hay timing entre el
+      # filesystem de Windows y el de la VM, Docker puede crear un
+      # directorio vacío en el destino en vez de montar el archivo, lo que
+      # produce el error "Can't initialize batch_readline - may be the
+      # input source is a directory". Montando la carpeta completa se evita
+      # ese problema.
+      - ./db-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 10s
