@@ -101,7 +101,7 @@ pipeline {
     post {
         success {
             echo """
-            ✅ DESPLIEGUE EXITOSO
+            DESPLIEGUE EXITOSO
             ─────────────────────────────────────
             Rama:      gabriel
             App local: http://localhost:${APP_PORT}
