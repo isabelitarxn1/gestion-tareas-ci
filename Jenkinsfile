@@ -7,7 +7,7 @@ pipeline {
         // Puerto donde corre la app
         APP_PORT = "8080"
         // Rama que dispara el pipeline
-        BRANCH_NAME_TARGET = "gabriel"
+        BRANCH_NAME_TARGET = "main"
         // Nombre de proyecto FIJO y único para docker-compose.
         // Esto evita que "docker-compose down" use el nombre de la carpeta
         // del workspace (que puede coincidir/confundirse con otros stacks,
@@ -37,10 +37,10 @@ pipeline {
                     def ramaActual = env.GIT_BRANCH ?: env.BRANCH_NAME ?: "desconocida"
                     echo "Rama actual: ${ramaActual}"
 
-                    if (ramaActual != "desconocida" && !ramaActual.endsWith('gabriel')) {
-                        error("Este pipeline solo se ejecuta en la rama 'gabriel'. Rama actual: ${ramaActual}")
+                    if (ramaActual != "desconocida" && !ramaActual.endsWith('main')) {
+                        error("Este pipeline solo se ejecuta en la rama 'main'. Rama actual: ${ramaActual}")
                     } else if (ramaActual == "desconocida") {
-                        echo "ADVERTENCIA: no se pudo determinar la rama automáticamente (probablemente un build manual). Continuando bajo el supuesto de que el job está configurado para la rama 'gabriel'."
+                        echo "ADVERTENCIA: no se pudo determinar la rama automáticamente (probablemente un build manual). Continuando bajo el supuesto de que el job está configurado para la rama 'main'."
                     }
                 }
             }
@@ -48,7 +48,7 @@ pipeline {
 
         stage('Clonar repositorio') {
             steps {
-                echo 'Obteniendo últimos cambios de la rama gabriel...'
+                echo 'Obteniendo últimos cambios de la rama main...'
                 checkout scm
             }
         }
@@ -135,7 +135,7 @@ pipeline {
             echo """
             DESPLIEGUE EXITOSO
             ─────────────────────────────────────
-            Rama:      gabriel
+            Rama:      main
             App local: http://localhost:${APP_PORT}
             ─────────────────────────────────────
             """

@@ -6,7 +6,7 @@ Este proyecto fue desarrollado para el módulo **Énfasis Profesional I – Inte
 
 La aplicación permite registrar y consultar tareas académicas mediante una interfaz web desarrollada en PHP y una base de datos MySQL.
 
-Además, el proyecto implementa conceptos de **Integración Continua (CI)** mediante GitHub, Docker, Docker Compose y Jenkins, permitiendo automatizar la construcción y despliegue de la aplicación.
+Además, el proyecto implementa conceptos de **Integración Continua (CI)** mediante GitHub, Docker, Docker Compose y Jenkins, permitiendo automatizar la construcción y el despliegue de la aplicación.
 
 ---
 
@@ -18,17 +18,9 @@ Implementar integración continua en un producto mínimo viable de gestión de t
 
 ### Objetivos Específicos
 
-1.
-
-Desarrollar un módulo de gestión de tareas que permita registrar y consultar información.
-
-2.
-
-Incorporar mecanismos de control y seguimiento de cambios que favorezcan la colaboración entre los integrantes del proyecto y mejoren la administración del código fuente.
-
-3.
-
-Implementar una arquitectura basada en contenedores para asegurar la comunicación entre servicios y la portabilidad del sistema.
+1. Desarrollar un módulo de gestión de tareas que permita registrar y consultar información.
+2. Incorporar mecanismos de control y seguimiento de cambios que favorezcan la colaboración entre los integrantes del proyecto y mejoren la administración del código fuente.
+3. Implementar una arquitectura basada en contenedores para asegurar la comunicación entre servicios y la portabilidad del sistema.
 
 ---
 
@@ -44,51 +36,57 @@ Implementar una arquitectura basada en contenedores para asegurar la comunicaci�
 | Jenkins        | LTS     |
 | Git            | Última  |
 | GitHub         | Cloud   |
+| ngrok          | Última  |
 
 ---
 
 ## Funcionalidades
 
-* Registro de tareas.
-* Almacenamiento en base de datos MySQL.
-* Consulta de tareas registradas.
-* Comunicación entre contenedores Docker.
-* Automatización de despliegue mediante Jenkins.
-* Ejecución automática del pipeline mediante Webhooks.
+* Registro de tareas mediante un formulario web.
+* Almacenamiento de tareas en una base de datos MySQL.
+* Consulta de tareas registradas desde una vista independiente, accesible mediante un enlace desde el formulario principal.
+* Comunicación entre contenedores Docker a través de una red interna.
+* Automatización de la construcción y el despliegue mediante un pipeline de Jenkins.
+* Disparo automático del pipeline mediante un webhook de GitHub.
 
 ---
 
 ## Arquitectura de la Solución
 
+A diferencia de versiones anteriores del proyecto, **ngrok no expone la aplicación web**. Su única función es generar una URL pública temporal hacia la interfaz de Jenkins, para que GitHub pueda notificarle los cambios mediante un webhook. La aplicación queda disponible únicamente en la red local, en `http://localhost:8080`.
+
 ```text
 Desarrollador
      │
      ▼
- GitHub Repository
+git push (rama main)
      │
      ▼
- GitHub Webhook
+GitHub Repository
      │
      ▼
- ngrok
+GitHub Webhook
      │
      ▼
- Jenkins
+ngrok (expone únicamente el puerto 8081 de Jenkins)
      │
      ▼
- Pipeline CI
+Jenkins (contenedor Docker, puerto 8081)
      │
      ▼
- Docker Compose
+Pipeline CI (Jenkinsfile)
+     │
+     ▼
+Docker Compose
      │
      ▼
  ┌─────────────┐
- │ PHP Apache  │
+ │ PHP Apache  │  (contenedor gestion_tareas_app, puerto 8080)
  └──────┬──────┘
         │
         ▼
  ┌─────────────┐
- │ MySQL 8.0   │
+ │ MySQL 8.0   │  (contenedor gestion_tareas_db, puerto 3306)
  └─────────────┘
 ```
 
@@ -100,34 +98,38 @@ Desarrollador
 
 * Nombre: `gestion_tareas_app`
 * Tecnología: PHP 8.2 + Apache
-* Puerto: 8081
+* Puerto: 8080
 
 ### Base de Datos
 
 * Nombre: `gestion_tareas_db`
 * Tecnología: MySQL 8.0
 * Puerto: 3306
+* Inicialización: la carpeta `db-init/` se monta en `/docker-entrypoint-initdb.d`, de modo que el script `db-init/init.sql` crea la base de datos `gestion_tareas_ci` y la tabla `tareas` la primera vez que se levanta el contenedor.
 
 ### Jenkins
 
 * Nombre: `jenkins`
 * Tecnología: Jenkins LTS
-* Puerto: 8080
+* Puerto: 8081
 
 ---
 
 ## Estructura del Proyecto
 
 ```text
-gestion_tareas_ci/
+gestion-tareas-ci/
 │
 ├── Dockerfile
 ├── docker-compose.yml
+├── docker-compose.jenkins.yml
 ├── Jenkinsfile
 ├── conexion.php
 ├── guardar.php
 ├── listar.php
 ├── index.php
+├── db-init/
+│   └── init.sql
 └── README.md
 ```
 
@@ -147,15 +149,20 @@ git clone https://github.com/isabelitarxn1/gestion-tareas-ci.git
 cd gestion-tareas-ci
 ```
 
-## Construir contenedores
+## Ajustar la ruta del volumen de inicialización de la base de datos
+
+En `docker-compose.yml`, el servicio `db` monta la carpeta `db-init/` mediante una ruta absoluta de Windows, en lugar de una ruta relativa. Esto es necesario porque Jenkins corre dentro de un contenedor Docker y, al ejecutar comandos `docker-compose`, estos terminan resolviéndose contra el directorio de trabajo del daemon de Docker en el equipo anfitrión, y no contra el workspace interno de Jenkins. Cada integrante del equipo debe ajustar esa ruta para que coincida con la ubicación real del proyecto en su propia máquina, por ejemplo:
+
+```yaml
+volumes:
+  - db_data:/var/lib/mysql
+  - C:\xampp\htdocs\gestion-tareas-ci\db-init:/docker-entrypoint-initdb.d
+```
+
+## Construir y levantar los servicios
 
 ```bash
 docker compose build
-```
-
-## Levantar servicios
-
-```bash
 docker compose up -d
 ```
 
@@ -169,27 +176,33 @@ docker ps
 
 # Acceso al Sistema
 
-Aplicación web:
+Aplicación web (formulario de registro de tareas):
 
 ```text
-http://localhost:8081
+http://localhost:8080
+```
+
+Lista de tareas registradas (accesible también desde un enlace en la página principal):
+
+```text
+http://localhost:8080/listar.php
 ```
 
 Jenkins:
 
 ```text
-http://localhost:8080
+http://localhost:8081
 ```
 
 ---
 
 # Integración Continua con Jenkins
 
-La automatización del proyecto fue implementada mediante Jenkins.
+La automatización del proyecto fue implementada mediante Jenkins, ejecutándose en un contenedor Docker independiente (`docker-compose.jenkins.yml`), con acceso al socket de Docker del equipo anfitrión para poder construir imágenes y levantar contenedores.
 
 ## Objetivo
 
-Automatizar validaciones y despliegues después de cada cambio realizado en GitHub.
+Automatizar la construcción y el despliegue de la aplicación después de cada cambio realizado en la rama `main` del repositorio.
 
 ---
 
@@ -197,37 +210,33 @@ Automatizar validaciones y despliegues después de cada cambio realizado en GitH
 
 El pipeline implementado contiene las siguientes etapas:
 
-## Verificar archivos
+## Verificar rama
+
+Confirma que el pipeline se está ejecutando sobre la rama `main`.
+
+## Clonar repositorio
+
+Obtiene la última versión del código desde GitHub.
+
+## Detener contenedores anteriores
+
+Detiene y elimina los contenedores previos de la aplicación y la base de datos, sin afectar al contenedor de Jenkins. El volumen de datos de MySQL se conserva intencionalmente entre despliegues, de modo que las tareas guardadas no se pierden en cada ejecución del pipeline.
+
+## Construir imagen Docker
 
 ```bash
-pwd
-ls -la
+docker build -t gestion-tareas-app:latest .
 ```
 
-## Validar Docker Compose
+## Desplegar aplicación con base de datos
 
 ```bash
-docker compose config
+docker-compose -p gestion_tareas_app_stack -f docker-compose.yml up -d --build
 ```
 
-## Build
+## Verificar despliegue
 
-```bash
-docker compose build
-```
-
-## Deploy
-
-```bash
-docker compose down
-docker compose up -d
-```
-
-## Comprobar Contenedores
-
-```bash
-docker ps
-```
+Confirma que el contenedor de la aplicación esté en ejecución y que la tabla `tareas` exista en la base de datos, como mecanismo de detección temprana de fallos en la inicialización de MySQL.
 
 ---
 
@@ -236,7 +245,7 @@ docker ps
 En Jenkins se creó un Pipeline denominado:
 
 ```text
-gestion-tareas-ci
+gestion-tareas-main
 ```
 
 Configurado mediante:
@@ -245,21 +254,21 @@ Configurado mediante:
 Pipeline Script from SCM
 ```
 
-Conectado directamente al repositorio GitHub.
+Conectado directamente al repositorio de GitHub, apuntando a la rama `main`.
 
 ---
 
-# Integración mediante Ngrok
+# Integración mediante ngrok
 
-Para permitir la comunicación entre GitHub y Jenkins se utilizó Ngrok.
+ngrok se utiliza exclusivamente para exponer la interfaz de Jenkins (puerto 8081) y permitir que GitHub pueda enviarle notificaciones mediante un webhook. La aplicación web **no** se expone con ngrok; permanece disponible solo en la red local.
 
 Comando:
 
 ```bash
-ngrok http 8080
+ngrok http 8081
 ```
 
-Esto genera una URL pública que permite recibir solicitudes externas.
+Esto genera una URL pública temporal que permite recibir las solicitudes de GitHub. Dado que esta URL cambia cada vez que se reinicia el túnel, la actualización de la Payload URL del webhook se realiza de forma manual.
 
 ---
 
@@ -291,25 +300,29 @@ Just the push event
 Cada vez que se realiza un:
 
 ```bash
-git push
+git push origin main
 ```
 
-GitHub notifica automáticamente a Jenkins.
+GitHub notifica automáticamente a Jenkins, y este dispara la ejecución del pipeline.
 
 ---
+
 # Flujo Completo de Integración Continua
 
 ```text
 Desarrollador realiza cambios
             │
             ▼
-         git push
+   git push (rama main)
             │
             ▼
           GitHub
             │
             ▼
          Webhook
+            │
+            ▼
+    ngrok (puerto 8081)
             │
             ▼
           Jenkins
@@ -325,7 +338,9 @@ Desarrollador realiza cambios
             │
             ▼
  Aplicación Actualizada
+ (http://localhost:8080)
 ```
+
 ---
 
 ## Conceptos Aplicados
@@ -336,17 +351,21 @@ Desarrollador realiza cambios
 * Contenedorización con Docker.
 * Orquestación con Docker Compose.
 * Automatización con Jenkins.
+* Exposición de servicios locales mediante túneles (ngrok).
 * DevOps básico.
 
 ---
+
 ## Beneficios Obtenidos
 
-- Automatización del despliegue de la aplicación.
-- Reducción de errores manuales.
-- Mayor trazabilidad de cambios mediante Git.
-- Portabilidad gracias al uso de Docker.
-- Mejor colaboración entre los integrantes del equipo.
-- Base para futuras implementaciones DevOps y CI/CD.
+* Automatización del despliegue de la aplicación.
+* Reducción de errores manuales.
+* Mayor trazabilidad de cambios mediante Git.
+* Portabilidad gracias al uso de Docker.
+* Mejor colaboración entre los integrantes del equipo.
+* Base para futuras implementaciones DevOps y CI/CD.
+
+---
 
 ## Equipo de Trabajo
 
@@ -360,11 +379,26 @@ Desarrollador realiza cambios
 
 ## Repositorio
 
-https://github.com/isabelitarxn1/gestion-tareas-ci
+[https://github.com/isabelitarxn1/gestion-tareas-ci](https://github.com/isabelitarxn1/gestion-tareas-ci)
 
 ---
 
+## Referencias
+
+Docker Inc. (2024). *Docker Compose overview*. Docker Documentation. https://docs.docker.com/compose/
+
+Docker Inc. (2024). *Use bind mounts*. Docker Documentation. https://docs.docker.com/storage/bind-mounts/
+
+GitHub Inc. (2024). *Webhooks documentation*. GitHub Docs. https://docs.github.com/en/webhooks
+
+Jenkins Project. (2024). *Pipeline syntax*. Jenkins Documentation. https://www.jenkins.io/doc/book/pipeline/syntax/
+
+MySQL. (2024). *Docker official image initialization scripts*. MySQL Documentation / Docker Hub. https://hub.docker.com/_/mysql
+
+ngrok Inc. (2024). *ngrok documentation*. https://ngrok.com/docs
+
+The PHP Group. (2024). *PHP: mysqli — Manual*. PHP Documentation. https://www.php.net/manual/es/book.mysqli.php
+
+---
 
 Proyecto académico desarrollado con fines educativos para el módulo Énfasis Profesional I – Integración Continua.
-
-

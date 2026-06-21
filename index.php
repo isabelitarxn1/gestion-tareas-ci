@@ -57,6 +57,22 @@
             background-color: #0056b3;
         }
 
+        .enlace-listar{
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .enlace-listar:hover{
+            background-color: #565e64;
+        }
+
     </style>
 
 </head>
@@ -78,6 +94,8 @@
             <button type="submit">Guardar Tarea</button>
 
         </form>
+
+        <a href="listar.php" class="enlace-listar">Ver tareas registradas</a>
 
     </div>
 

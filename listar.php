@@ -44,6 +44,20 @@ $resultado = mysqli_query($conexion, $sql);
             color: white;
         }
 
+        .enlace-volver{
+            display: inline-block;
+            margin-bottom: 15px;
+            padding: 10px 16px;
+            background-color: #007BFF;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .enlace-volver:hover{
+            background-color: #0056b3;
+        }
+
     </style>
 
 </head>
@@ -51,6 +65,8 @@ $resultado = mysqli_query($conexion, $sql);
 <body>
 
     <h1>Lista de Tareas</h1>
+
+    <a href="index.php" class="enlace-volver">&larr; Volver a registrar tarea</a>
 
     <table>
 
