@@ -15,5 +15,5 @@ CREATE TABLE IF NOT EXISTS tareas (
 
 -- Datos de ejemplo
 INSERT INTO tareas (titulo, descripcion, estado) VALUES
-('Tarea de prueba 1', 'Descripción de la tarea de prueba 1', 'pendiente'),
-('Tarea de prueba 2', 'Descripción de la tarea de prueba 2', 'en_progreso');
+('Tarea de prueba 1', 'Descripcion de la tarea de prueba 1', 'pendiente'),
+('Tarea de prueba 2', 'Descripcion de la tarea de prueba 2', 'en_progreso');
