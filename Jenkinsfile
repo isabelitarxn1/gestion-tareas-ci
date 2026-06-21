@@ -14,14 +14,14 @@ pipeline {
         // incluido el propio Jenkins) y termine apagando contenedores que
         // no le pertenecen, como el propio Jenkins.
         COMPOSE_PROJECT_NAME = "gestion_tareas_app_stack"
-        // Token de ngrok, leído de una credencial "Secret text" configurada
-        // en Jenkins (Manage Jenkins → Credentials) con el ID "ngrok-authtoken".
-        // Esto evita tener el token hardcodeado en el Jenkinsfile.
-        NGROK_AUTHTOKEN = credentials('ngrok-authtoken')
     }
 
     triggers {
-        // Disparar el pipeline con webhook de GitHub/GitLab
+        // Disparar el pipeline con webhook de GitHub.
+        // NOTA: ngrok ya NO se usa para exponer esta app. ngrok se usa
+        // únicamente, de forma manual y aparte de este pipeline, para
+        // exponer Jenkins (puerto 8081) y así poder configurar la Payload
+        // URL del webhook de GitHub. Ver sección 11 de la documentación.
         githubPush()
     }
 
@@ -62,16 +62,9 @@ pipeline {
                     # nada fuera de él (como el contenedor jenkins).
                     docker-compose -p ${COMPOSE_PROJECT_NAME} -f docker-compose.yml down --remove-orphans || true
 
-                    # IMPORTANTE: el contenedor de ngrok se detiene con "stop"
-                    # (señal SIGTERM, apagado ordenado) ANTES de eliminarlo con
-                    # "rm". Esto le da tiempo a ngrok de avisarle a sus
-                    # servidores que el túnel se cerró. Si se usa "rm -f"
-                    # directo (kill abrupto), el endpoint puede quedar
-                    # "fantasma" como activo del lado de ngrok, y la próxima
-                    # vez que se intente abrir el mismo túnel falla con
-                    # ERR_NGROK_334 ("endpoint already online").
-                    docker stop -t 5 ngrok_tunnel || true
-                    docker rm -f gestion_tareas_app gestion_tareas_db ngrok_tunnel || true
+                    # Eliminación puntual por nombre, solo de los contenedores
+                    # de la app/BD — nunca tocamos el contenedor "jenkins".
+                    docker rm -f gestion_tareas_app gestion_tareas_db || true
                 '''
             }
         }
@@ -103,100 +96,20 @@ pipeline {
                 '''
             }
         }
-
-        stage('Exponer con ngrok') {
-            steps {
-                echo 'Exponiendo la aplicación a internet con ngrok...'
-                sh '''
-                    # IMPORTANTE: ngrok corre como CONTENEDOR DOCKER independiente,
-                    # no como proceso en background dentro del step de Jenkins.
-                    # Un proceso lanzado con "&" dentro de un step "sh" puede ser
-                    # eliminado por Jenkins cuando el step termina (el step mata a
-                    # sus procesos hijos). Un contenedor Docker, en cambio, sigue
-                    # vivo en el host independientemente del ciclo de vida del step.
-
-                    # Quitar cualquier contenedor ngrok previo, deteniéndolo
-                    # ordenadamente primero (ver explicación detallada en el
-                    # stage "Detener contenedores anteriores").
-                    docker stop -t 5 ngrok_tunnel || true
-                    docker rm -f ngrok_tunnel || true
-
-                    # Levantar ngrok en un contenedor propio, en la misma red que
-                    # la app, apuntando al contenedor "gestion_tareas_app" por
-                    # nombre (no localhost, porque está en otro contenedor).
-                    docker run -d \
-                        --name ngrok_tunnel \
-                        --network ${COMPOSE_PROJECT_NAME}_gestion_network \
-                        -e NGROK_AUTHTOKEN="${NGROK_AUTHTOKEN}" \
-                        ngrok/ngrok:latest \
-                        http gestion_tareas_app:80
-
-                    # Esperar a que la API local de ngrok (dentro de su propio
-                    # contenedor) responda, con reintentos.
-                    NGROK_URL=""
-                    for i in $(seq 1 15); do
-                        sleep 2
-                        RESPONSE=$(docker exec ngrok_tunnel curl -s http://localhost:4040/api/tunnels || true)
-                        if [ -n "$RESPONSE" ]; then
-                            NGROK_URL=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    tunnels = data.get('tunnels', [])
-    if tunnels:
-        print(tunnels[0]['public_url'])
-except Exception:
-    pass
-" 2>/dev/null)
-                            if [ -n "$NGROK_URL" ]; then
-                                break
-                            fi
-                        fi
-                        echo "Esperando a que ngrok levante el túnel... intento $i/15"
-                    done
-
-                    if [ -z "$NGROK_URL" ]; then
-                        echo "ERROR: ngrok no generó una URL pública a tiempo."
-                        echo "--- Log del contenedor ngrok ---"
-                        docker logs ngrok_tunnel || true
-                        echo ""
-                        echo "Si el log de arriba muestra ERR_NGROK_334 (\\"endpoint"
-                        echo "already online\\"), significa que una sesión anterior de"
-                        echo "ngrok quedó registrada como activa en los servidores de"
-                        echo "ngrok aunque ya no exista localmente. Solución manual:"
-                        echo "entrar a https://dashboard.ngrok.com/endpoints y detener"
-                        echo "el endpoint desde ahí, luego volver a correr el pipeline."
-                        exit 1
-                    fi
-
-                    echo "========================================="
-                    echo "APLICACION DISPONIBLE EN:"
-                    echo "${NGROK_URL}"
-                    echo "========================================="
-
-                    # Guardar la URL en un archivo para referencia
-                    echo "${NGROK_URL}" > /tmp/ngrok_url.txt
-                '''
-            }
-        }
     }
 
     post {
         success {
-            script {
-                def ngrokUrl = sh(script: 'cat /tmp/ngrok_url.txt 2>/dev/null || echo "URL no disponible"', returnStdout: true).trim()
-                echo """
-                DESPLIEGUE EXITOSO
-                ─────────────────────────────────────
-                Rama:       gabriel
-                URL pública: ${ngrokUrl}
-                App local:  http://localhost:${APP_PORT}
-                ─────────────────────────────────────
-                """
-            }
+            echo """
+            ✅ DESPLIEGUE EXITOSO
+            ─────────────────────────────────────
+            Rama:      gabriel
+            App local: http://localhost:${APP_PORT}
+            ─────────────────────────────────────
+            """
         }
         failure {
-            echo '❌ El pipeline falló. Revisá los logs arriba para más detalles.'
+            echo 'El pipeline falló. Revisá los logs arriba para más detalles.'
             sh 'docker-compose -p ${COMPOSE_PROJECT_NAME} -f docker-compose.yml logs --tail=50 || true'
         }
         always {
