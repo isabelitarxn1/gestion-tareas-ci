@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Tareas CI - Jenkins v2</title>
+    <title>Gestión de Tareas CI</title>
 
     <style>
 
@@ -65,7 +65,7 @@
 
     <div class="contenedor">
 
-        <h1>Gestión de Tareas</h1>
+        <h1>Gestión de Tareas - Jenkins v2</h1>
 
         <form action="guardar.php" method="POST">
 
