@@ -62,8 +62,15 @@ pipeline {
                     # nada fuera de él (como el contenedor jenkins).
                     docker-compose -p ${COMPOSE_PROJECT_NAME} -f docker-compose.yml down --remove-orphans || true
 
-                    # Eliminación puntual por nombre, solo de los contenedores
-                    # de la app/BD/ngrok — nunca tocamos el contenedor "jenkins".
+                    # IMPORTANTE: el contenedor de ngrok se detiene con "stop"
+                    # (señal SIGTERM, apagado ordenado) ANTES de eliminarlo con
+                    # "rm". Esto le da tiempo a ngrok de avisarle a sus
+                    # servidores que el túnel se cerró. Si se usa "rm -f"
+                    # directo (kill abrupto), el endpoint puede quedar
+                    # "fantasma" como activo del lado de ngrok, y la próxima
+                    # vez que se intente abrir el mismo túnel falla con
+                    # ERR_NGROK_334 ("endpoint already online").
+                    docker stop -t 5 ngrok_tunnel || true
                     docker rm -f gestion_tareas_app gestion_tareas_db ngrok_tunnel || true
                 '''
             }
@@ -108,7 +115,10 @@ pipeline {
                     # sus procesos hijos). Un contenedor Docker, en cambio, sigue
                     # vivo en el host independientemente del ciclo de vida del step.
 
-                    # Quitar cualquier contenedor ngrok previo
+                    # Quitar cualquier contenedor ngrok previo, deteniéndolo
+                    # ordenadamente primero (ver explicación detallada en el
+                    # stage "Detener contenedores anteriores").
+                    docker stop -t 5 ngrok_tunnel || true
                     docker rm -f ngrok_tunnel || true
 
                     # Levantar ngrok en un contenedor propio, en la misma red que
@@ -149,6 +159,13 @@ except Exception:
                         echo "ERROR: ngrok no generó una URL pública a tiempo."
                         echo "--- Log del contenedor ngrok ---"
                         docker logs ngrok_tunnel || true
+                        echo ""
+                        echo "Si el log de arriba muestra ERR_NGROK_334 (\\"endpoint"
+                        echo "already online\\"), significa que una sesión anterior de"
+                        echo "ngrok quedó registrada como activa en los servidores de"
+                        echo "ngrok aunque ya no exista localmente. Solución manual:"
+                        echo "entrar a https://dashboard.ngrok.com/endpoints y detener"
+                        echo "el endpoint desde ahí, luego volver a correr el pipeline."
                         exit 1
                     fi
 
