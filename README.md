@@ -371,7 +371,7 @@ Desarrollador realiza cambios
 
 * Laura Monsalve Corpus
 * Arianna Mora Villarreal
-* Gabriel Salazar Lozada
+* main Salazar Lozada
 * Jhobardelson Zuluaga García
 * Isabel Cristina Madrigal Jaramillo
 
