@@ -132,58 +132,75 @@ pipeline {
         stage('Métricas del pipeline') {
             steps {
                 script {
-                    def finPipeline = sh(script: 'date +%s', returnStdout: true).trim().toInteger()
-                    def inicioPipeline = env.INICIO_PIPELINE.toInteger()
+                    // ── Duración total: Jenkins lo sabe con precisión ──────────
+                    def durTotalSeg  = (System.currentTimeMillis() - currentBuild.startTimeInMillis) / 1000
+                    def durTotalFmt  = "${durTotalSeg.toInteger()} seg"
 
-                    // Duraciones por stage (en segundos)
-                    def durClonar   = env.FIN_CLONAR.toInteger()   - env.INICIO_CLONAR.toInteger()
-                    def durDetener  = env.FIN_DETENER.toInteger()   - env.INICIO_DETENER.toInteger()
-                    def durBuild    = env.FIN_BUILD.toInteger()     - env.INICIO_BUILD.toInteger()
-                    def durDeploy   = env.FIN_DEPLOY.toInteger()    - env.INICIO_DEPLOY.toInteger()
-                    def durVerif    = env.FIN_VERIFICAR.toInteger() - env.INICIO_VERIFICAR.toInteger()
-                    def durTotal    = finPipeline - inicioPipeline
+                    // ── Información del commit ────────────────────────────────
+                    def commitHash   = sh(script: 'git rev-parse --short HEAD 2>/dev/null || echo "N/A"',          returnStdout: true).trim()
+                    def commitAutor  = sh(script: 'git log -1 --pretty=format:"%an" 2>/dev/null || echo "N/A"',   returnStdout: true).trim()
+                    def commitFecha  = sh(script: 'git log -1 --pretty=format:"%ci" 2>/dev/null || echo "N/A"',   returnStdout: true).trim()
+                    def commitMsg    = sh(script: 'git log -1 --pretty=format:"%s" 2>/dev/null || echo "N/A"',    returnStdout: true).trim()
+                    def totalCommits = sh(script: 'git rev-list --count HEAD 2>/dev/null || echo "0"',            returnStdout: true).trim()
+
+                    // ── Métricas del código fuente ────────────────────────────
+                    def archivosPhp  = sh(script: 'find . -name "*.php" | grep -v vendor | wc -l',               returnStdout: true).trim()
+                    def lineasPhp    = sh(script: 'find . -name "*.php" | grep -v vendor | xargs wc -l 2>/dev/null | tail -1 | awk \'{print $1}\'', returnStdout: true).trim() ?: "0"
+
+                    // ── Métricas de la imagen Docker ──────────────────────────
+                    def imagenSize   = sh(script: 'docker image inspect gestion-tareas-app:latest --format "{{.Size}}" 2>/dev/null | awk \'{printf "%.1f MB", $1/1024/1024}\'', returnStdout: true).trim() ?: "N/A"
+                    def imagenId     = sh(script: 'docker image inspect gestion-tareas-app:latest --format "{{.Id}}" 2>/dev/null | cut -c8-19',                                 returnStdout: true).trim() ?: "N/A"
+
+                    // ── Estado de los contenedores ────────────────────────────
+                    def appStatus    = sh(script: 'docker ps --filter "name=gestion_tareas_app" --format "{{.Status}}" 2>/dev/null || echo "N/A"', returnStdout: true).trim()
+                    def dbStatus     = sh(script: 'docker ps --filter "name=gestion_tareas_db"  --format "{{.Status}}" 2>/dev/null || echo "N/A"', returnStdout: true).trim()
+                    def contActivos  = sh(script: 'docker ps | grep -c "gestion_tareas" 2>/dev/null || echo "0"', returnStdout: true).trim()
+
+                    // ── Métricas de base de datos ─────────────────────────────
+                    def totalTareas  = sh(script: 'docker exec gestion_tareas_db mysql -uroot -proot -N -e "SELECT COUNT(*) FROM gestion_tareas_ci.tareas;" 2>/dev/null || echo "0"', returnStdout: true).trim()
+
+                    // ── Número de build y trigger ─────────────────────────────
+                    def buildNum     = currentBuild.number.toString()
+                    def buildCausa   = currentBuild.getBuildCauses()[0]?.shortDescription ?: "Manual"
 
                     echo """
 ╔══════════════════════════════════════════════════════════════════╗
-║           MÉTRICAS DE EJECUCIÓN DEL PIPELINE                    ║
+║         MÉTRICAS DE EJECUCIÓN DEL PIPELINE                      ║
+╠══════════════════════════════════════════════════════════════════╣
+║  BUILD #${buildNum.padRight(56)}║
+║  Disparado por: ${buildCausa.take(47).padRight(47)}║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  INFORMACIÓN DEL COMMIT                                         ║
 ║  ─────────────────────────────────────────────────────────────  ║
-║  Hash:          ${env.COMMIT_HASH.padRight(47)}║
-║  Autor:         ${env.COMMIT_AUTOR.padRight(47)}║
-║  Fecha:         ${env.COMMIT_FECHA.padRight(47)}║
-║  Mensaje:       ${env.COMMIT_MSG.take(47).padRight(47)}║
-║  Total commits: ${env.TOTAL_COMMITS.padRight(47)}║
+║  Hash:          ${commitHash.padRight(47)}║
+║  Autor:         ${commitAutor.padRight(47)}║
+║  Fecha:         ${commitFecha.padRight(47)}║
+║  Mensaje:       ${commitMsg.take(47).padRight(47)}║
+║  Total commits: ${totalCommits.padRight(47)}║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  MÉTRICAS DEL CÓDIGO FUENTE                                     ║
 ║  ─────────────────────────────────────────────────────────────  ║
-║  Archivos PHP:  ${env.ARCHIVOS_PHP.padRight(47)}║
-║  Líneas PHP:    ${env.LINEAS_PHP.padRight(47)}║
+║  Archivos PHP:  ${archivosPhp.padRight(47)}║
+║  Líneas PHP:    ${lineasPhp.padRight(47)}║
 ╠══════════════════════════════════════════════════════════════════╣
-║  TIEMPOS DE EJECUCIÓN POR STAGE                                 ║
+║  DURACIÓN TOTAL DEL PIPELINE                                    ║
 ║  ─────────────────────────────────────────────────────────────  ║
-║  Clonar repo:   ${(durClonar + " seg").padRight(47)}║
-║  Detener cont:  ${(durDetener + " seg").padRight(47)}║
-║  Build imagen:  ${(durBuild + " seg").padRight(47)}║
-║  Deploy:        ${(durDeploy + " seg").padRight(47)}║
-║  Verificar:     ${(durVerif + " seg").padRight(47)}║
-║  ─────────────────────────────────────────────────────────────  ║
-║  DURACIÓN TOTAL: ${(durTotal + " segundos").padRight(46)}║
+║  Tiempo total:  ${durTotalFmt.padRight(47)}║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  MÉTRICAS DE INFRAESTRUCTURA                                    ║
 ║  ─────────────────────────────────────────────────────────────  ║
-║  Imagen Docker:     ${env.IMAGE_ID ?: env.IMAGEN_ID}            ║
-║  Tamaño imagen:     ${env.IMAGEN_SIZE.padRight(43)}║
-║  App container:     ${env.APP_CONTAINER_STATUS.padRight(43)}║
-║  DB  container:     ${env.DB_CONTAINER_STATUS.padRight(43)}║
-║  Contenedores up:   ${env.TOTAL_CONTENEDORES.padRight(43)}║
+║  ID imagen:     ${imagenId.padRight(47)}║
+║  Tamaño imagen: ${imagenSize.padRight(47)}║
+║  App container: ${appStatus.padRight(47)}║
+║  DB  container: ${dbStatus.padRight(47)}║
+║  Contenedores:  ${contActivos.padRight(47)}║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  MÉTRICAS DE BASE DE DATOS                                      ║
 ║  ─────────────────────────────────────────────────────────────  ║
-║  Tareas en BD:      ${env.TOTAL_TAREAS_DB.padRight(43)}║
+║  Tareas en BD:  ${totalTareas.padRight(47)}║
 ╠══════════════════════════════════════════════════════════════════╣
-║  RESULTADO FINAL: EXITOSO                                        ║
-║  App disponible en: http://localhost:${env.APP_PORT}            ║
+║  RESULTADO: EXITOSO                                             ║
+║  App: http://localhost:${APP_PORT}                              ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
                 }
