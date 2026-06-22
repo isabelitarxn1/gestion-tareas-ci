@@ -128,6 +128,67 @@ pipeline {
                 '''
             }
         }
+
+        stage('Métricas del pipeline') {
+            steps {
+                script {
+                    def finPipeline = sh(script: 'date +%s', returnStdout: true).trim().toInteger()
+                    def inicioPipeline = env.INICIO_PIPELINE.toInteger()
+
+                    // Duraciones por stage (en segundos)
+                    def durClonar   = env.FIN_CLONAR.toInteger()   - env.INICIO_CLONAR.toInteger()
+                    def durDetener  = env.FIN_DETENER.toInteger()   - env.INICIO_DETENER.toInteger()
+                    def durBuild    = env.FIN_BUILD.toInteger()     - env.INICIO_BUILD.toInteger()
+                    def durDeploy   = env.FIN_DEPLOY.toInteger()    - env.INICIO_DEPLOY.toInteger()
+                    def durVerif    = env.FIN_VERIFICAR.toInteger() - env.INICIO_VERIFICAR.toInteger()
+                    def durTotal    = finPipeline - inicioPipeline
+
+                    echo """
+╔══════════════════════════════════════════════════════════════════╗
+║           MÉTRICAS DE EJECUCIÓN DEL PIPELINE                    ║
+╠══════════════════════════════════════════════════════════════════╣
+║  INFORMACIÓN DEL COMMIT                                         ║
+║  ─────────────────────────────────────────────────────────────  ║
+║  Hash:          ${env.COMMIT_HASH.padRight(47)}║
+║  Autor:         ${env.COMMIT_AUTOR.padRight(47)}║
+║  Fecha:         ${env.COMMIT_FECHA.padRight(47)}║
+║  Mensaje:       ${env.COMMIT_MSG.take(47).padRight(47)}║
+║  Total commits: ${env.TOTAL_COMMITS.padRight(47)}║
+╠══════════════════════════════════════════════════════════════════╣
+║  MÉTRICAS DEL CÓDIGO FUENTE                                     ║
+║  ─────────────────────────────────────────────────────────────  ║
+║  Archivos PHP:  ${env.ARCHIVOS_PHP.padRight(47)}║
+║  Líneas PHP:    ${env.LINEAS_PHP.padRight(47)}║
+╠══════════════════════════════════════════════════════════════════╣
+║  TIEMPOS DE EJECUCIÓN POR STAGE                                 ║
+║  ─────────────────────────────────────────────────────────────  ║
+║  Clonar repo:   ${(durClonar + " seg").padRight(47)}║
+║  Detener cont:  ${(durDetener + " seg").padRight(47)}║
+║  Build imagen:  ${(durBuild + " seg").padRight(47)}║
+║  Deploy:        ${(durDeploy + " seg").padRight(47)}║
+║  Verificar:     ${(durVerif + " seg").padRight(47)}║
+║  ─────────────────────────────────────────────────────────────  ║
+║  DURACIÓN TOTAL: ${(durTotal + " segundos").padRight(46)}║
+╠══════════════════════════════════════════════════════════════════╣
+║  MÉTRICAS DE INFRAESTRUCTURA                                    ║
+║  ─────────────────────────────────────────────────────────────  ║
+║  Imagen Docker:     ${env.IMAGE_ID ?: env.IMAGEN_ID}            ║
+║  Tamaño imagen:     ${env.IMAGEN_SIZE.padRight(43)}║
+║  App container:     ${env.APP_CONTAINER_STATUS.padRight(43)}║
+║  DB  container:     ${env.DB_CONTAINER_STATUS.padRight(43)}║
+║  Contenedores up:   ${env.TOTAL_CONTENEDORES.padRight(43)}║
+╠══════════════════════════════════════════════════════════════════╣
+║  MÉTRICAS DE BASE DE DATOS                                      ║
+║  ─────────────────────────────────────────────────────────────  ║
+║  Tareas en BD:      ${env.TOTAL_TAREAS_DB.padRight(43)}║
+╠══════════════════════════════════════════════════════════════════╣
+║  RESULTADO FINAL: EXITOSO                                        ║
+║  App disponible en: http://localhost:${env.APP_PORT}            ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+                }
+            }
+        }
     }
 
     post {
