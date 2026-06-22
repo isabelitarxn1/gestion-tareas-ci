@@ -165,42 +165,42 @@ pipeline {
 
                     echo """
 ╔══════════════════════════════════════════════════════════════════╗
-║         MÉTRICAS DE EJECUCIÓN DEL PIPELINE                      ║
+║         MÉTRICAS DE EJECUCIÓN DEL PIPELINE                       ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  BUILD #${buildNum.padRight(56)}║
-║  Disparado por: ${buildCausa.take(47).padRight(47)}║
+║  BUILD #${buildNum.padRight(56)}                                 ║
+║  Disparado por: ${buildCausa.take(47).padRight(47)}              ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  INFORMACIÓN DEL COMMIT                                         ║
-║  ─────────────────────────────────────────────────────────────  ║
-║  Hash:          ${commitHash.padRight(47)}║
-║  Autor:         ${commitAutor.padRight(47)}║
-║  Fecha:         ${commitFecha.padRight(47)}║
-║  Mensaje:       ${commitMsg.take(47).padRight(47)}║
-║  Total commits: ${totalCommits.padRight(47)}║
+║  INFORMACIÓN DEL COMMIT                                          ║
+║  ────────────────────────────────────────────────────────────────║
+║  Hash:          ${commitHash.padRight(47)}                       ║
+║  Autor:         ${commitAutor.padRight(47)}                      ║
+║  Fecha:         ${commitFecha.padRight(47)}                      ║
+║  Mensaje:       ${commitMsg.take(47).padRight(47)}               ║
+║  Total commits: ${totalCommits.padRight(47)}                     ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  MÉTRICAS DEL CÓDIGO FUENTE                                     ║
-║  ─────────────────────────────────────────────────────────────  ║
-║  Archivos PHP:  ${archivosPhp.padRight(47)}║
-║  Líneas PHP:    ${lineasPhp.padRight(47)}║
+║  MÉTRICAS DEL CÓDIGO FUENTE                                      ║
+║  ────────────────────────────────────────────────────────────────║
+║  Archivos PHP:  ${archivosPhp.padRight(47)}                      ║
+║  Líneas PHP:    ${lineasPhp.padRight(47)}                        ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  DURACIÓN TOTAL DEL PIPELINE                                    ║
-║  ─────────────────────────────────────────────────────────────  ║
-║  Tiempo total:  ${durTotalFmt.padRight(47)}║
+║  DURACIÓN TOTAL DEL PIPELINE                                     ║
+║  ────────────────────────────────────────────────────────────────║
+║  Tiempo total:  ${durTotalFmt.padRight(47)}                      ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  MÉTRICAS DE INFRAESTRUCTURA                                    ║
-║  ─────────────────────────────────────────────────────────────  ║
-║  ID imagen:     ${imagenId.padRight(47)}║
-║  Tamaño imagen: ${imagenSize.padRight(47)}║
-║  App container: ${appStatus.padRight(47)}║
-║  DB  container: ${dbStatus.padRight(47)}║
-║  Contenedores:  ${contActivos.padRight(47)}║
+║  MÉTRICAS DE INFRAESTRUCTURA                                     ║
+║  ────────────────────────────────────────────────────────────────║
+║  ID imagen:     ${imagenId.padRight(47)}                         ║
+║  Tamaño imagen: ${imagenSize.padRight(47)}                       ║
+║  App container: ${appStatus.padRight(47)}                        ║
+║  DB  container: ${dbStatus.padRight(47)}                         ║
+║  Contenedores:  ${contActivos.padRight(47)}                      ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  MÉTRICAS DE BASE DE DATOS                                      ║
-║  ─────────────────────────────────────────────────────────────  ║
-║  Tareas en BD:  ${totalTareas.padRight(47)}║
+║  MÉTRICAS DE BASE DE DATOS                                       ║
+║  ────────────────────────────────────────────────────────────────║
+║  Tareas en BD:  ${totalTareas.padRight(47)}                      ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  RESULTADO: EXITOSO                                             ║
-║  App: http://localhost:${APP_PORT}                              ║
+║  RESULTADO: EXITOSO                                              ║
+║  App: http://localhost:${APP_PORT}                               ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
                 }
