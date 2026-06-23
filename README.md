@@ -238,6 +238,15 @@ docker-compose -p gestion_tareas_app_stack -f docker-compose.yml up -d --build
 
 Confirma que el contenedor de la aplicación esté en ejecución y que la tabla `tareas` exista en la base de datos, como mecanismo de detección temprana de fallos en la inicialización de MySQL.
 
+## Métricas del pipeline
+
+Al finalizar cada ejecución exitosa, este stage recopila y muestra en el Console Output un resumen con las métricas obtenidas durante el despliegue, sin requerir herramientas adicionales. Las métricas incluidas son:
+     - Información del commit: hash, autor, fecha, mensaje y total de commits acumulados en la rama.
+     - Código fuente: cantidad de archivos PHP y total de líneas de código.
+     - Duración total: tiempo transcurrido desde el inicio del pipeline hasta el final, obtenido directamente desde Jenkins (currentBuild.startTimeInMillis).
+     - Infraestructura: ID y tamaño de la imagen Docker generada, estado de cada contenedor y número de contenedores activos.
+     - Base de datos: cantidad de tareas almacenadas actualmente en MySQL.
+
 ---
 
 # Configuración del Pipeline
